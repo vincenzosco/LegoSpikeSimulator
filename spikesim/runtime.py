@@ -22,7 +22,7 @@ import inspect
 import itertools
 import math
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Callable, Iterable
 
 from .config import (

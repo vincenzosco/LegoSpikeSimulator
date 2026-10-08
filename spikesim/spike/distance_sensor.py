@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..config import DISTANCE_SENSOR
-from ..errors import PixelOutOfRangeError
+from ..errors import InvalidArgumentError, PixelOutOfRangeError
 from ..runtime import hardware
 
 __all__ = ["distance", "clear", "get_pixel", "set_pixel", "show"]
@@ -62,8 +62,6 @@ def show(port: int, pixels) -> None:
     port = _port(port)
     values = [int(value) for value in pixels]
     if len(values) != _LEDS:
-        from ..errors import InvalidArgumentError
-
         raise InvalidArgumentError(
             f"show() richiede {_LEDS} valori, ricevuti {len(values)}."
         )

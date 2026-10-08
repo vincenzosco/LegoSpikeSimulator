@@ -27,7 +27,7 @@ import subprocess
 import sys
 import threading
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from .config import Config, default_config
 from .errors import ProgramLimitError, SpikeError

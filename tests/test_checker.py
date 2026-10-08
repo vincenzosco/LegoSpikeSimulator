@@ -9,10 +9,8 @@ from __future__ import annotations
 
 import textwrap
 
-import pytest
-
 from spikesim.checker import check_source, check_text
-from spikesim.config import PORT_C, PORT_D, COLOR_SENSOR, default_config
+from spikesim.config import COLOR_SENSOR, PORT_C, default_config
 
 
 def check(source: str, config=None):

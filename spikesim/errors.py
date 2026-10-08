@@ -62,9 +62,3 @@ class ProgramLimitError(SpikeError):
     """Il programma ha superato il limite di tempo o di passi simulati."""
 
     code = "SPIKE016"
-
-
-class UnsupportedError(SpikeError):
-    """Funzione della libreria non modellata dal simulatore."""
-
-    code = "SPIKE017"

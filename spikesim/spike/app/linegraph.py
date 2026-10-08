@@ -47,11 +47,6 @@ def hide() -> None:
     hardware().emit("note", text="app.linegraph.hide()", level="info")
 
 
-def _stat(color: int, pick):
-    values = _points.get(_color(color), [])
-    return pick(values) if values else 0
-
-
 def get_last(color: int):
     label = f"app.linegraph.get_last({color})"
     return _make(label)

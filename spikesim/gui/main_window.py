@@ -9,7 +9,6 @@ from PyQt5.QtWidgets import (
     QAction,
     QDockWidget,
     QFileDialog,
-    QHBoxLayout,
     QLabel,
     QLineEdit,
     QMainWindow,

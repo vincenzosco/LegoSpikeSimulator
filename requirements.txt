@@ -1,0 +1,2 @@
+# Il simulatore ha una sola dipendenza: Qt.
+PyQt5>=5.15

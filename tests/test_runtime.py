@@ -12,13 +12,7 @@ from dataclasses import replace
 
 import pytest
 
-from spikesim.config import (
-    COLOR_SENSOR,
-    DISTANCE_SENSOR,
-    FORCE_SENSOR,
-    PORT_C,
-    default_config,
-)
+from spikesim.config import COLOR_SENSOR, PORT_C, default_config
 from spikesim.runtime import PHYSICS_STEP_MS
 
 WHEEL_MM_PER_TURN = math.pi * 56.0  # ruota da 56 mm di diametro

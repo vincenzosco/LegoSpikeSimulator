@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PyQt5.QtGui import QColor, QFont
+from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QLabel, QPlainTextEdit, QVBoxLayout, QWidget
 
 from ..trace import Diagnostic, Trace

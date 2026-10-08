@@ -7,7 +7,6 @@ descrivono il hub stesso.
 
 from __future__ import annotations
 
-from .. import _consts as K
 from ...runtime import hardware
 from . import button, light, light_matrix, motion_sensor, port, sound
 
