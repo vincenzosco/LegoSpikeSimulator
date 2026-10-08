@@ -176,6 +176,55 @@ def test_full_simulation_shows_a_moving_robot(window, qapp, tmp_path):
     assert start.toImage() != end.toImage(), "il disegno del robot non è cambiato"
 
 
+def test_playback_keeps_running_by_itself(window, qapp):
+    """Avviata la riproduzione, l'animazione deve procedere da sola."""
+    window.timeline.set_duration(10000)
+    window.timeline.play()
+    assert window.timeline.is_playing()
+
+    deadline = time.time() + 0.4
+    while time.time() < deadline:
+        qapp.processEvents()
+        time.sleep(0.005)
+
+    assert window.timeline.is_playing(), "la riproduzione si è fermata da sola"
+    assert window.timeline.time_ms > 100.0, "il tempo non è avanzato"
+
+
+def test_seeking_backwards_rebuilds_the_console(window, qapp, tmp_path):
+    path = _write(
+        tmp_path,
+        "import runloop\n"
+        "\n"
+        "async def main():\n"
+        "    print('primo')\n"
+        "    await runloop.sleep_ms(500)\n"
+        "    print('secondo')\n"
+        "\n"
+        "runloop.run(main())\n",
+    )
+    window.load_program(str(path))
+    window.simulate()
+    _wait_for_simulation(window, qapp)
+
+    window.timeline.set_time(window._trace.duration_ms)  # noqa: SLF001
+    qapp.processEvents()
+    assert "secondo" in window.console_panel.view.toPlainText()
+
+    window.timeline.set_time(0.0)
+    qapp.processEvents()
+    text = window.console_panel.view.toPlainText()
+    assert "primo" in text
+    assert "secondo" not in text, "riavvolgendo, i messaggi futuri devono sparire"
+
+    # E riavanzando devono ricomparire, una volta sola.
+    window.timeline.set_time(window._trace.duration_ms)  # noqa: SLF001
+    qapp.processEvents()
+    text = window.console_panel.view.toPlainText()
+    assert text.count("primo") == 1
+    assert "secondo" in text
+
+
 def test_matrix_view_follows_the_events(window, qapp, tmp_path):
     path = _write(
         tmp_path,
@@ -246,6 +295,19 @@ def test_port_configuration_reaches_the_simulation(window, qapp, tmp_path):
     assert trace.ok, trace.diagnostics
     text = [e.data["text"] for e in trace.events if e.type == "print"]
     assert text == ["9"]
+
+
+def test_closing_during_a_simulation_is_safe(window, qapp, tmp_path):
+    path = _write(tmp_path, "while True:\n    pass\n")
+    window.load_program(str(path))
+    window.simulate()
+    qapp.processEvents()
+    assert window._thread is not None and window._thread.isRunning()  # noqa: SLF001
+
+    window.close()
+    qapp.processEvents()
+
+    assert window._thread is None, "il lavoratore deve essere stato fermato"
 
 
 def test_diagnostics_are_rechecked_when_the_hardware_changes(window, tmp_path):

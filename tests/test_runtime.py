@@ -141,6 +141,47 @@ def test_top_level_sleep_advances_the_robot(run_source):
     assert trace.poses[-1][3] == pytest.approx(-90.0, abs=0.01)
 
 
+def test_full_lock_steering_is_not_reported_as_a_stall(run_source):
+    """Con sterzo 100 la ruota destra è ferma per progetto, non bloccata."""
+    result = run_source(
+        """
+        import motor_pair, runloop
+        from hub import port
+
+        async def main():
+            motor_pair.pair(motor_pair.PAIR_1, port.A, port.B)
+            await motor_pair.move_for_degrees(motor_pair.PAIR_1, 360, 100)
+
+        runloop.run(main())
+        """
+    )
+    trace = result.trace
+    assert "SPIKE019" not in _codes(result), _messages(result)
+    assert trace.ok, _messages(result)
+    # Ruota destra ferma e sinistra al doppio: il robot ruota attorno alla
+    # ruota destra, quindi il *centro* percorre un arco di raggio pari a metà
+    # carreggiata (56 mm) e chiude a -90 gradi.
+    assert trace.poses[-1][3] == pytest.approx(-90.0, abs=0.5)
+    assert trace.poses[-1][1] == pytest.approx(56.0, abs=1.0)
+    assert trace.poses[-1][2] == pytest.approx(-56.0, abs=1.0)
+
+
+def test_zero_degree_move_is_not_reported_as_a_stall(run_source):
+    result = run_source(
+        """
+        import motor, runloop
+        from hub import port
+
+        async def main():
+            await motor.run_for_degrees(port.A, 0, 720)
+
+        runloop.run(main())
+        """
+    )
+    assert "SPIKE019" not in _codes(result), _messages(result)
+    assert result.trace.poses[-1][3] == pytest.approx(0.0, abs=1e-9)
+
+
 def test_pose_samples_are_dense_enough_for_animation(run_source):
     result = run_source(
         """

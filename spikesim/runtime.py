@@ -148,6 +148,13 @@ class MotorState:
 
         delta = self.velocity * dt_ms / 1000.0
         remaining = move.target_position - self.position
+        if remaining == 0.0:
+            # Già a destinazione: succede quando il movimento richiesto è di 0
+            # gradi, o alla ruota ferma di uno sterzo a fondo corsa. Non è uno
+            # stallo: la posizione richiesta *è* quella raggiunta.
+            self.position = move.target_position
+            self.finish(hardware)
+            return
         if delta != 0.0 and remaining * delta > 0 and abs(remaining) <= abs(delta):
             self.position = move.target_position
             self.finish(hardware)

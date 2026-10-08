@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import threading
 
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtWidgets import (
@@ -39,15 +40,25 @@ class _RunnerThread(QThread):
     completed = pyqtSignal(object)
     failed = pyqtSignal(str)
 
-    def __init__(self, path: str, config: Config, timeout_s: float) -> None:
+    def __init__(
+        self, path: str, config: Config, timeout_s: float, cancel: threading.Event
+    ) -> None:
         super().__init__()
         self._path = path
         self._config = config
         self._timeout = timeout_s
+        self._cancel = cancel
 
     def run(self) -> None:  # noqa: D102 - metodo di QThread
         try:
-            self.completed.emit(run_program(self._path, self._config, timeout_s=self._timeout))
+            self.completed.emit(
+                run_program(
+                    self._path,
+                    self._config,
+                    timeout_s=self._timeout,
+                    cancel=self._cancel,
+                )
+            )
         except Exception as exc:  # pragma: no cover - difensivo
             self.failed.emit(f"{type(exc).__name__}: {exc}")
 
@@ -61,6 +72,7 @@ class MainWindow(QMainWindow):
 
         self._config = default_config()
         self._thread: _RunnerThread | None = None
+        self._cancel: threading.Event | None = None
         self._trace: Trace | None = None
 
         self.code_panel = CodePanel()
@@ -224,7 +236,8 @@ class MainWindow(QMainWindow):
         self._set_busy(True)
         self._set_status("Simulazione in corso…")
 
-        self._thread = _RunnerThread(path, config, 90.0)
+        self._cancel = threading.Event()
+        self._thread = _RunnerThread(path, config, 90.0, self._cancel)
         self._thread.completed.connect(self._on_result)
         self._thread.failed.connect(self._on_failure)
         self._thread.start()
@@ -318,6 +331,29 @@ class MainWindow(QMainWindow):
         return None
 
     # -- utilità -------------------------------------------------------------
+
+    def closeEvent(self, event) -> None:  # noqa: N802 - nome imposto da Qt
+        """Chiudendo la finestra non deve restare un programma in sottofondo."""
+        self._stop_runner()
+        super().closeEvent(event)
+
+    def _stop_runner(self) -> None:
+        thread, self._thread = self._thread, None
+        if self._cancel is not None:
+            self._cancel.set()
+            self._cancel = None
+        if thread is None:
+            return
+        # Scollegarsi prima: se il lavoratore finisse comunque mentre la
+        # finestra se ne sta andando, non deve richiamare i suoi slot.
+        for signal in (thread.completed, thread.failed):
+            try:
+                signal.disconnect()
+            except TypeError:
+                pass
+        if thread.isRunning() and not thread.wait(3000):  # pragma: no cover - difensivo
+            thread.terminate()
+            thread.wait(1000)
 
     def _set_busy(self, busy: bool) -> None:
         self.run_action.setEnabled(not busy)

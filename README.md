@@ -38,7 +38,10 @@ Requisiti: Python 3.10 o superiore, PyQt5 5.15, nessun'altra dipendenza.
 3. **Simula** con il pulsante o con `F5`. Il programma gira in un processo
    separato; al termine la simulazione parte da sola.
 4. Usa la **barra del tempo** per rivedere il movimento: pausa, riavvolgimento
-   a un istante preciso, velocità da 0,25x a 10x.
+   a un istante preciso, velocità da 0,25x a 10x. Il tempo scorre da solo:
+   il grilletto si sposta, il robot avanza e la console si riempie.
+5. Chiudendo la finestra durante una simulazione il processo figlio viene
+   ucciso subito: non resta niente a girare in sottofondo.
 5. Nel pannello **Hardware** dichiara cosa è collegato a ciascuna porta: è
    quello che permette al simulatore di dire «su questa porta non c'è
    niente» e di sapere quali ruote muovono il robot.
@@ -84,6 +87,7 @@ numero di riga.
 | `SPIKE024` | `runloop.run` non ha ricevuto nessuna funzione `async` |
 | `SPIKE031`–`SPIKE034` | intensità, volume, velocità o sterzo fuori intervallo: valore limitato |
 | `TIMEOUT` | il processo non ha risposto ed è stato interrotto |
+| `CANCELLED` | la simulazione è stata annullata (chiusura della finestra) |
 | `RUNNER` | il processo che esegue il programma non ha prodotto una traccia valida |
 
 ## Il modello di simulazione

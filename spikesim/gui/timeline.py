@@ -27,6 +27,10 @@ class Timeline(QWidget):
         self._time = 0.0
         self._speed = 1.0
         self._dragging = False
+        #: Distingue un movimento della barra fatto *da noi* mentre il tempo
+        #: avanza da un trascinamento vero dell'utente: senza questa
+        #: distinzione la riproduzione si fermerebbe da sola al primo fotogramma.
+        self._syncing = False
 
         self.play_button = QPushButton("▶  Riproduci")
         self.play_button.setObjectName("primary")
@@ -132,9 +136,9 @@ class Timeline(QWidget):
     def _sync_slider(self) -> None:
         if self._duration <= 0:
             return
-        self._dragging = True
+        self._syncing = True
         self.slider.setValue(int(self._time / self._duration * 1000))
-        self._dragging = False
+        self._syncing = False
 
     def _update_label(self) -> None:
         self.time_label.setText(f"{self._time / 1000:.2f} s / {self._duration / 1000:.2f} s")
@@ -147,8 +151,9 @@ class Timeline(QWidget):
         self._apply_slider()
 
     def _on_slider_moved(self, _value: int) -> None:
-        if self._dragging:
-            self._apply_slider()
+        if self._syncing or not self._dragging:
+            return
+        self._apply_slider()
 
     def _apply_slider(self) -> None:
         if self._duration <= 0:

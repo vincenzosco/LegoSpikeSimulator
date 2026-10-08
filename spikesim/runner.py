@@ -26,6 +26,7 @@ import signal
 import subprocess
 import sys
 import threading
+import time
 import warnings
 from dataclasses import dataclass
 
@@ -241,29 +242,43 @@ def _absorb_warnings(hardware: Hardware, caught) -> None:
         )
 
 
-def _timeout_trace(path: str, seconds: float) -> Trace:
-    """Traccia prodotta quando il processo figlio viene ucciso per timeout."""
+#: Ogni quanto il processo padre controlla il figlio.
+_POLL_SECONDS = 0.2
+
+
+def _killed_trace(path: str, code: str, message: str) -> Trace:
+    """Traccia prodotta quando il processo figlio viene ucciso di proposito."""
     return Trace(
         program=os.path.abspath(path),
         duration_ms=0,
         terminated=False,
         poses=[],
         events=[],
-        diagnostics=[
-            Diagnostic(
-                "error",
-                "TIMEOUT",
-                f"il programma non ha risposto entro {seconds:.0f} secondi ed è "
-                "stato interrotto.",
-            )
-        ],
+        diagnostics=[Diagnostic("error", code, message)],
+    )
+
+
+def _timeout_trace(path: str, seconds: float) -> Trace:
+    return _killed_trace(
+        path,
+        "TIMEOUT",
+        f"il programma non ha risposto entro {seconds:.0f} secondi ed è stato interrotto.",
     )
 
 
 def run_program(
-    path: str, config: Config | None = None, *, timeout_s: float = 90.0
+    path: str,
+    config: Config | None = None,
+    *,
+    timeout_s: float = 90.0,
+    cancel: "threading.Event | None" = None,
 ) -> RunResult:
-    """Esegue ``path`` in un processo separato e legge la traccia JSON."""
+    """Esegue ``path`` in un processo separato e legge la traccia JSON.
+
+    Se ``cancel`` viene impostato, il processo figlio viene ucciso subito:
+    è così che la GUI chiude la finestra senza lasciare un programma a
+    girare in sottofondo.
+    """
     config = config or default_config()
     command = [
         sys.executable,
@@ -280,24 +295,45 @@ def run_program(
     environment.setdefault("PYTHONIOENCODING", "utf-8")
 
     try:
-        completed = subprocess.run(
+        process = subprocess.Popen(
             command,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
             errors="replace",
-            timeout=timeout_s,
             env=environment,
             cwd=REPO_ROOT,
         )
-    except subprocess.TimeoutExpired as expired:
-        stderr = expired.stderr or ""
-        if isinstance(stderr, bytes):  # pragma: no cover - dipende da text=
-            stderr = stderr.decode("utf-8", "replace")
-        return RunResult(trace=_timeout_trace(path, timeout_s), stderr=stderr)
+    except OSError as exc:  # pragma: no cover - l'interprete non parte
+        return RunResult(
+            trace=_killed_trace(path, "RUNNER", f"non riesco ad avviare il processo: {exc}")
+        )
 
-    stderr = completed.stderr or ""
+    deadline = time.monotonic() + timeout_s
+    while True:
+        try:
+            stdout, stderr = process.communicate(timeout=_POLL_SECONDS)
+            break
+        except subprocess.TimeoutExpired:
+            if cancel is not None and cancel.is_set():
+                process.kill()
+                process.communicate()
+                return RunResult(
+                    trace=_killed_trace(
+                        path, "CANCELLED", "simulazione annullata su richiesta."
+                    )
+                )
+            if time.monotonic() >= deadline:
+                process.kill()
+                stdout, stderr = process.communicate()
+                return RunResult(
+                    trace=_timeout_trace(path, timeout_s), stderr=stderr or ""
+                )
+
+    stdout = stdout or ""
+    stderr = stderr or ""
     try:
-        trace = Trace.from_dict(json.loads(completed.stdout))
+        trace = Trace.from_dict(json.loads(stdout))
     except (ValueError, TypeError) as exc:
         return RunResult(
             trace=Trace(
@@ -312,7 +348,7 @@ def run_program(
                         "RUNNER",
                         "il processo che esegue il programma non ha prodotto una "
                         f"traccia valida ({exc}).",
-                        detail=stderr.strip() or completed.stdout[-2000:],
+                        detail=stderr.strip() or stdout[-2000:],
                     )
                 ],
             ),

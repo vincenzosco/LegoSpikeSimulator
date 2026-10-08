@@ -9,6 +9,8 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import threading
+import time
 
 import pytest
 
@@ -72,6 +74,21 @@ def test_runaway_program_is_killed_and_reported(tmp_path):
     assert not trace.terminated
     assert [d.code for d in trace.diagnostics] == ["TIMEOUT"]
     assert trace.poses == []
+
+
+def test_a_running_program_can_be_cancelled(tmp_path):
+    """Chiudere la finestra mentre il programma gira non deve restare appeso."""
+    path = _write(tmp_path, "while True:\n    pass\n")
+    cancel = threading.Event()
+    threading.Timer(0.4, cancel.set).start()
+
+    started = time.monotonic()
+    result = run_program(str(path), timeout_s=30, cancel=cancel)
+    elapsed = time.monotonic() - started
+
+    assert elapsed < 5.0, f"l'annullamento ha impiegato {elapsed:.1f} s"
+    assert not result.trace.terminated
+    assert [d.code for d in result.trace.diagnostics] == ["CANCELLED"]
 
 
 def test_stdout_is_pure_json_so_the_gui_can_parse_it(tmp_path):
