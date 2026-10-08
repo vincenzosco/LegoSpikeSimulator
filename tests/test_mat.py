@@ -94,9 +94,9 @@ def _walk(board: M.Mat) -> list[tuple[int, int]]:
         if tile.kind == M.FINISH:
             return visited
         if tile.kind == M.TURN_LEFT:
-            heading = (heading - 90) % 360
-        elif tile.kind == M.TURN_RIGHT:
             heading = (heading + 90) % 360
+        elif tile.kind == M.TURN_RIGHT:
+            heading = (heading - 90) % 360
         elif tile.kind not in (M.START, M.STRAIGHT):
             raise AssertionError(f"mattonella inattesa sul percorso: {tile.kind}")
         dc, dr = M.DIRECTIONS[heading]
@@ -129,6 +129,19 @@ def test_generation_is_reproducible_with_the_same_seed():
 def test_different_seeds_give_different_tracks():
     shapes = {repr(M.generate_track(seed).to_dict()["tiles"]) for seed in range(12)}
     assert len(shapes) > 1
+
+
+def test_turn_left_goes_counterclockwise_and_turn_right_the_other_way():
+    """Il verso cresce in senso antiorario: 0 = est, 90 = nord.
+
+    È la stessa convenzione dello sterzo dei motori (sterzo -100 = sinistra =
+    verso che cresce), quindi una mattonella verde deve portare il robot a
+    nord quando sta andando verso est.
+    """
+    left = M.Mat(tile_size_mm=SIZE, tiles={(0, 0): M.Tile(M.TURN_LEFT), (0, 1): M.Tile(M.FINISH)})
+    assert left.path_tiles() == [(0, 0), (0, 1)]
+    right = M.Mat(tile_size_mm=SIZE, tiles={(0, 0): M.Tile(M.TURN_RIGHT), (0, -1): M.Tile(M.FINISH)})
+    assert right.path_tiles() == [(0, 0), (0, -1)]
 
 
 def test_a_track_can_have_no_turns():

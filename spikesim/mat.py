@@ -211,9 +211,9 @@ class Mat:
             if tile is None or tile.kind == FINISH:
                 break
             if tile.kind == TURN_LEFT:
-                heading = (heading - 90) % 360
-            elif tile.kind == TURN_RIGHT:
                 heading = (heading + 90) % 360
+            elif tile.kind == TURN_RIGHT:
+                heading = (heading - 90) % 360
             dc, dr = DIRECTIONS[heading]
             cell = (cell[0] + dc, cell[1] + dr)
         return order
@@ -288,9 +288,11 @@ def _attempt(
                 return None
             tiles[previous] = Tile(STRAIGHT, heading)
         else:
+            # ``heading`` cresce in senso antiorario (0 = est): girare a
+            # sinistra *aumenta* il verso, come lo sterzo -100 dei motori.
             choices = [
-                (TURN_LEFT, (heading - 90) % 360),
-                (TURN_RIGHT, (heading + 90) % 360),
+                (TURN_LEFT, (heading + 90) % 360),
+                (TURN_RIGHT, (heading - 90) % 360),
             ]
             rng.shuffle(choices)
             picked = None
