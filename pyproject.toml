@@ -1,7 +1,9 @@
 [project]
 name = "lego-spike-simulator"
 version = "0.1.0"
-description = "Simulatore del robot LEGO Education SPIKE Prime con GUI PyQt5"
+description = "A LEGO Education SPIKE Prime robot simulator with a PyQt5 GUI"
+readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.10"
 dependencies = ["PyQt5>=5.15"]
 
@@ -9,8 +11,8 @@ dependencies = ["PyQt5>=5.15"]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["spikesim"]
+[tool.setuptools.packages.find]
+include = ["spikesim*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

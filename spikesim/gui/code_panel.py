@@ -6,7 +6,14 @@ import os
 
 from PyQt5.QtCore import QRect, Qt
 from PyQt5.QtGui import QColor, QFont, QPainter, QTextCharFormat, QTextCursor
-from PyQt5.QtWidgets import QLabel, QPlainTextEdit, QTextEdit, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import (
+    QLabel,
+    QPlainTextEdit,
+    QSizePolicy,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
 from . import theme
 
@@ -83,6 +90,10 @@ class CodePanel(QWidget):
 
         self.title = QLabel("Nessun programma caricato")
         self.title.setProperty("role", "section")
+        # Un percorso lungo non deve allargare il pannello: il percorso intero
+        # resta nel suggerimento, l'etichetta mostra solo il nome del file.
+        self.title.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+        self.title.setMinimumWidth(0)
 
         self.editor = _CodeEditor()
         self.editor.setObjectName("codeEditor")
@@ -102,13 +113,15 @@ class CodePanel(QWidget):
 
     def set_program(self, path: str, source: str) -> None:
         self._path = path
-        self.title.setText(f"{os.path.basename(path)}  —  {path}")
+        self.title.setText(os.path.basename(path))
+        self.title.setToolTip(path)
         self.editor.setPlainText(source)
         self.editor.setExtraSelections([])
 
     def clear(self) -> None:
         self._path = None
         self.title.setText("Nessun programma caricato")
+        self.title.setToolTip("")
         self.editor.clear()
         self.editor.setExtraSelections([])
 

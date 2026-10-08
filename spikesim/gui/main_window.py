@@ -98,6 +98,18 @@ class MainWindow(QMainWindow):
 
     # -- costruzione ---------------------------------------------------------
 
+    def showEvent(self, event) -> None:  # noqa: N802 - nome imposto da Qt
+        """Alla prima comparsa dà al campo lo spazio che gli spetta."""
+        super().showEvent(event)
+        if self._splitters_sized:
+            return
+        self._splitters_sized = True
+        left, right, centre = self._splitters
+        self.robot_view.setMinimumWidth(360)
+        left.setSizes([420, 240])
+        right.setSizes([560, 220])
+        centre.setSizes([520, 900])
+
     def _build_layout(self) -> None:
         left = QSplitter(Qt.Vertical)
         left.addWidget(self.code_panel)
@@ -114,8 +126,14 @@ class MainWindow(QMainWindow):
         centre = QSplitter(Qt.Horizontal)
         centre.addWidget(left)
         centre.addWidget(right)
+        # Il campo è il protagonista: il codice si legge anche stretto.
         centre.setStretchFactor(0, 1)
-        centre.setStretchFactor(1, 1)
+        centre.setStretchFactor(1, 2)
+
+        # Le proporzioni si possono fissare solo a finestra mostrata: prima,
+        # il layout usa i ``sizeHint`` e schiaccerebbe il campo al minimo.
+        self._splitters = (left, right, centre)
+        self._splitters_sized = False
 
         container = QWidget()
         layout = QVBoxLayout(container)
