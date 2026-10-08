@@ -86,9 +86,16 @@ class Config:
     ports: dict[int, PortConfig] = field(default_factory=dict)
     wheel_diameter_mm: float = DEFAULT_WHEEL_DIAMETER_MM
     track_width_mm: float = DEFAULT_TRACK_WIDTH_MM
+    #: Porte che reggono le ruote motrici del drive base: solo questi due
+    #: motori fanno muovere il robot, gli altri muovono bracci o meccanismi.
+    drive_left_port: int = PORT_A
+    drive_right_port: int = PORT_B
     max_sim_time_ms: int = 120_000
     max_steps: int = 2_000_000
     sample_interval_ms: int = 20
+    #: Limite di tempo *reale*: un programma che non cede mai il controllo
+    #: (per esempio ``while True: pass``) viene interrotto dal watchdog.
+    max_wall_seconds: float = 15.0
     sensors: SensorValues = field(default_factory=SensorValues)
 
     # -- interrogazioni ----------------------------------------------------
@@ -104,6 +111,13 @@ class Config:
     def velocity_limit(self, port: int) -> int:
         """Velocità massima consentita dal motore sulla porta."""
         return MOTOR_VELOCITY_LIMITS.get(self.device(port), 0)
+
+    def is_drive_wheel(self, port: int) -> bool:
+        return port in (self.drive_left_port, self.drive_right_port)
+
+    def is_reversed(self, port: int) -> bool:
+        spec = self.ports.get(port)
+        return spec.reversed if spec else False
 
     def with_port(self, port: int, device: str, reversed_: bool = False) -> "Config":
         ports = dict(self.ports)
@@ -123,9 +137,12 @@ class Config:
             },
             "wheel_diameter_mm": self.wheel_diameter_mm,
             "track_width_mm": self.track_width_mm,
+            "drive_left_port": self.drive_left_port,
+            "drive_right_port": self.drive_right_port,
             "max_sim_time_ms": self.max_sim_time_ms,
             "max_steps": self.max_steps,
             "sample_interval_ms": self.sample_interval_ms,
+            "max_wall_seconds": self.max_wall_seconds,
             "sensors": {
                 "color": self.sensors.color,
                 "reflection": self.sensors.reflection,
@@ -146,9 +163,12 @@ class Config:
             ports=ports,
             wheel_diameter_mm=float(data.get("wheel_diameter_mm", DEFAULT_WHEEL_DIAMETER_MM)),
             track_width_mm=float(data.get("track_width_mm", DEFAULT_TRACK_WIDTH_MM)),
+            drive_left_port=int(data.get("drive_left_port", PORT_A)),
+            drive_right_port=int(data.get("drive_right_port", PORT_B)),
             max_sim_time_ms=int(data.get("max_sim_time_ms", 120_000)),
             max_steps=int(data.get("max_steps", 2_000_000)),
             sample_interval_ms=int(data.get("sample_interval_ms", 20)),
+            max_wall_seconds=float(data.get("max_wall_seconds", 15.0)),
             sensors=SensorValues(
                 color=int(sensors.get("color", 9)),
                 reflection=int(sensors.get("reflection", 50)),

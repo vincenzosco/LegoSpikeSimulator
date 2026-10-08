@@ -184,19 +184,29 @@ def from_json(text: str) -> Trace:
     return Trace.from_dict(json.loads(text))
 
 
-def diagnostics_from_exception(
-    exc: BaseException, program_filename: str
-) -> list[Diagnostic]:
-    """Trasforma un'eccezione del programma utente in una diagnostica.
+def user_line_from_exception(exc: BaseException, program_filename: str) -> int | None:
+    """Riga del file dell'utente più interna coinvolta nell'eccezione.
 
-    Viene scelta la cornice più interna che appartiene al file dell'utente:
-    è la riga che l'utente deve correggere, non l'interno della libreria.
+    È la riga che l'utente deve correggere, non l'interno della libreria.
     """
     line: int | None = None
     for frame, lineno in traceback.walk_tb(exc.__traceback__):
         if frame.f_code.co_filename == program_filename:
             line = lineno
-    detail = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    return line
+
+
+def format_exception(exc: BaseException) -> str:
+    """Traceback completo, come testo."""
+    return "".join(traceback.format_exception(type(exc), exc, exc.__traceback__)).strip()
+
+
+def diagnostics_from_exception(
+    exc: BaseException, program_filename: str
+) -> list[Diagnostic]:
+    """Trasforma un'eccezione del programma utente in una diagnostica."""
+    line = user_line_from_exception(exc, program_filename)
+    detail = format_exception(exc)
     return [
         Diagnostic(
             severity="error",
