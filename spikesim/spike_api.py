@@ -51,6 +51,29 @@ MODULE_MAP = {
 #: I moduli che il checker riconosce come "libreria SPIKE".
 SPIKE_MODULE_NAMES = frozenset(MODULE_MAP)
 
+#: Funzioni che la documentazione dichiara ``Awaitable``: se vengono chiamate
+#: senza ``await`` non fanno nulla. Il checker le usa per avvisare *prima* di
+#: eseguire il programma.
+AWAIT_REQUIRED: dict[str, frozenset[str]] = {
+    "motor": frozenset(
+        {
+            "run_for_degrees",
+            "run_for_time",
+            "run_to_absolute_position",
+            "run_to_relative_position",
+        }
+    ),
+    "motor_pair": frozenset(
+        {"move_for_degrees", "move_for_time", "move_tank_for_degrees", "move_tank_for_time"}
+    ),
+    "runloop": frozenset({"sleep_ms", "until"}),
+    "hub.light_matrix": frozenset({"write"}),
+    "hub.sound": frozenset({"beep"}),
+    "app.sound": frozenset({"play"}),
+    "app.bargraph": frozenset({"get_value"}),
+    "app.linegraph": frozenset({"get_average", "get_last", "get_max", "get_min"}),
+}
+
 
 def load(name: str):
     """Importa il modulo SPIKE corrispondente a ``name``."""
