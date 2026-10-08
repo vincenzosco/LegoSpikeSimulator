@@ -418,6 +418,11 @@ class MainWindow(QMainWindow):
         self.run_action.setEnabled(not busy)
         self.open_action.setEnabled(not busy)
         self.run_action.setText("⏳  Simulazione…" if busy else "▶  Simula")
+        # A metà corsa il processo figlio ha già la sua configurazione:
+        # cambiare tappeto, luce o porte lascerebbe a schermo una pista
+        # diversa da quella che il robot sta percorrendo.
+        self.mat_panel.setEnabled(not busy)
+        self.port_panel.setEnabled(not busy)
 
     def _set_status(self, text: str) -> None:
         self.status.setText(text)

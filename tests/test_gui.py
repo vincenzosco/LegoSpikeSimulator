@@ -434,6 +434,34 @@ def test_a_missing_sensor_on_the_port_still_fails(window, qapp, tmp_path):
     assert any("SPIKE011" in d.code for d in trace.diagnostics), trace.diagnostics
 
 
+def test_the_mat_and_hardware_panels_are_locked_during_a_simulation(window, qapp, tmp_path):
+    """Cambiare tappeto o porte a metà corsa mostrerebbe un robot fuori pista.
+
+    Il processo figlio gira già con la sua configurazione: risorteggiare il
+    tappeto adesso lascerebbe a schermo una pista diversa da quella percorsa.
+    """
+    path = _write(tmp_path, "while True:\n    pass\n")
+    window.load_program(str(path))
+    window.simulate()
+    qapp.processEvents()
+    try:
+        assert window._thread is not None and window._thread.isRunning()  # noqa: SLF001
+        assert not window.mat_panel.isEnabled(), "il tappeto non deve cambiare a metà corsa"
+        assert not window.port_panel.isEnabled(), "le porte non devono cambiare a metà corsa"
+    finally:
+        window.close()
+        qapp.processEvents()
+
+
+def test_the_panels_are_usable_again_after_a_simulation(window, qapp, tmp_path):
+    path = _write(tmp_path, PROGRAM)
+    window.load_program(str(path))
+    window.simulate()
+    _wait_for_simulation(window, qapp)
+    assert window.mat_panel.isEnabled(), "a fine corsa il tappeto torna modificabile"
+    assert window.port_panel.isEnabled()
+
+
 def test_closing_during_a_simulation_is_safe(window, qapp, tmp_path):
     path = _write(tmp_path, "while True:\n    pass\n")
     window.load_program(str(path))

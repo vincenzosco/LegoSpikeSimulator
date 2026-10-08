@@ -53,7 +53,7 @@ That is all: no build step, no Qt installation, no hardware.
 python3 -m pytest -q     # the whole test suite, about 6 seconds
 ```
 
-If you see `230 passed`, everything is in place.
+If you see `232 passed`, everything is in place.
 
 ## Quick start
 

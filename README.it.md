@@ -56,7 +56,7 @@ hardware.
 python3 -m pytest -q     # tutta la suite di test, circa 6 secondi
 ```
 
-Se leggi `230 passed`, è tutto a posto.
+Se leggi `232 passed`, è tutto a posto.
 
 ## Avvio rapido
 
