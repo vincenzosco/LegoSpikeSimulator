@@ -40,6 +40,7 @@ from .errors import (
     ProgramLimitError,
 )
 from .kinematics import Pose, integrate, motor_to_mm_s
+from .mat import Surface, apply_light
 from .spike import _consts as K
 from .trace import Diagnostic, Event, Trace
 
@@ -192,7 +193,7 @@ class Hardware:
         self.config = config or default_config()
         self.program = program
         self.t_ms = 0.0
-        self.pose = Pose()
+        self.pose = self._start_pose()
         self.motors: dict[int, MotorState] = {
             port: MotorState(port, self.config.device(port))
             for port in PORTS
@@ -219,6 +220,27 @@ class Hardware:
         self._last_sample_ms = -1e18
         self._motor_events: dict[int, tuple[float, int]] = {}
         self._sample(force=True)
+
+    # -- sensori ------------------------------------------------------------
+
+    def _start_pose(self) -> Pose:
+        """La posa di partenza: quella del tappeto, se c'è un tappeto."""
+        mat = self.config.mat
+        if mat is None:
+            return Pose()
+        return Pose(mat.start_x, mat.start_y, mat.start_heading)
+
+    def surface(self) -> Surface:
+        """Superficie sotto il robot, con la luce ambientale già applicata.
+
+        Senza tappeto restituisce i valori fissi dei sensori, così i
+        programmi scritti prima dell'arrivo del tappeto continuano a
+        funzionare.
+        """
+        mat = self.config.mat
+        if mat is None:
+            return Surface(self.config.sensors.color, self.config.sensors.reflection)
+        return apply_light(mat.surface_at(self.pose.x, self.pose.y), self.config.ambient_light)
 
     # -- validazione degli argomenti ---------------------------------------
 

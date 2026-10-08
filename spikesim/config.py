@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 
+from .mat import Mat
+
 # --- Porte -----------------------------------------------------------------
 
 PORT_A = 0
@@ -97,6 +99,13 @@ class Config:
     #: (per esempio ``while True: pass``) viene interrotto dal watchdog.
     max_wall_seconds: float = 15.0
     sensors: SensorValues = field(default_factory=SensorValues)
+    #: Il tappeto a mattonelle su cui si muove il robot. Senza tappeto il
+    #: campo è vuoto e i sensori leggono i valori fissi qui sopra.
+    mat: Mat | None = None
+    #: Luce ambientale in percentuale: 100 è una stanza ben illuminata,
+    #: sotto ``spikesim.mat.LIGHT_THRESHOLD`` il sensore non distingue più i
+    #: colori.
+    ambient_light: int = 100
 
     # -- interrogazioni ----------------------------------------------------
 
@@ -143,6 +152,8 @@ class Config:
             "max_steps": self.max_steps,
             "sample_interval_ms": self.sample_interval_ms,
             "max_wall_seconds": self.max_wall_seconds,
+            "ambient_light": self.ambient_light,
+            "mat": self.mat.to_dict() if self.mat is not None else None,
             "sensors": {
                 "color": self.sensors.color,
                 "reflection": self.sensors.reflection,
@@ -169,6 +180,8 @@ class Config:
             max_steps=int(data.get("max_steps", 2_000_000)),
             sample_interval_ms=int(data.get("sample_interval_ms", 20)),
             max_wall_seconds=float(data.get("max_wall_seconds", 15.0)),
+            ambient_light=int(data.get("ambient_light", 100)),
+            mat=Mat.from_dict(data["mat"]) if data.get("mat") else None,
             sensors=SensorValues(
                 color=int(sensors.get("color", 9)),
                 reflection=int(sensors.get("reflection", 50)),

@@ -1,7 +1,9 @@
 """``color_sensor``: il sensore di colore.
 
-I valori restituiti sono quelli impostati dall'utente nella configurazione
-delle porte (colore, riflessione); non c'è un vero sensore da leggere.
+Quando c'è un tappeto, il sensore legge la mattonella su cui si trova il
+**centro** del robot — è la lettura che cambia mentre il robot avanza, ed è
+su questa che si basa il programma segui-linea. Senza tappeto restituisce i
+valori fissi impostati nella configurazione delle porte.
 """
 
 from __future__ import annotations
@@ -12,28 +14,25 @@ from ..runtime import hardware
 __all__ = ["color", "reflection", "rgbi"]
 
 
-def _port(port):
-    hw = hardware()
-    return hw.require_device(port, (COLOR_SENSOR,), "un sensore di colore")
+def _port(port) -> int:
+    return hardware().require_device(port, (COLOR_SENSOR,), "un sensore di colore")
 
 
 def color(port: int) -> int:
     """Colore riconosciuto: confrontalo con le costanti del modulo ``color``."""
-    hardware()
     _port(port)
-    return hardware().config.sensors.color
+    return hardware().surface().color
 
 
 def reflection(port: int) -> int:
     """Intensità della luce riflessa, da 0 a 100."""
-    hardware()
     _port(port)
-    return hardware().config.sensors.reflection
+    return hardware().surface().reflection
 
 
 def rgbi(port: int) -> tuple[int, int, int, int]:
     """(rosso, verde, blu, intensità) misurati dal sensore."""
-    hw = hardware()
     _port(port)
-    value = hw.config.sensors.reflection * 255 // 100
-    return (value, value, value, hw.config.sensors.reflection)
+    reflection = hardware().surface().reflection
+    value = reflection * 255 // 100
+    return (value, value, value, reflection)
