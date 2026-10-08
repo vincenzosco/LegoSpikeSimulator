@@ -264,12 +264,13 @@ class Hardware:
         code: str,
         message: str,
         line: int | None = None,
+        column: int | None = None,
         detail: str = "",
     ) -> None:
         if len(self.diagnostics) >= MAX_DIAGNOSTICS:
             return
         self.diagnostics.append(
-            Diagnostic(severity, code, message, line=line, detail=detail)
+            Diagnostic(severity, code, message, line=line, column=column, detail=detail)
         )
 
     def motor_changed(self, state: MotorState) -> None:
@@ -414,7 +415,10 @@ class Hardware:
         unawaited: list[tuple[Any, str, int | None]] = []
         for obj, label, line in self.pending:
             if isinstance(obj, SpikeAwaitable):
-                if not obj.awaited and not obj.resolved:
+                # Conta solo l'essere stato atteso: un comando mai awaited può
+                # comunque risultare "risolto" perché la fine del programma
+                # ferma i motori, e non deve per questo sparire dalla diagnosi.
+                if not obj.awaited:
                     unawaited.append((obj, label, line))
             elif inspect.iscoroutine(obj):
                 try:
@@ -517,6 +521,7 @@ class Scheduler:
                     self._step(task)
                     self.steps += 1
                     if self.steps > self.hw.config.max_steps:
+                        self.hw.stop_reason = "step_limit"
                         raise ProgramLimitError(
                             "il programma ha eseguito troppi passi senza avanzare "
                             "nel tempo simulato (possibile ciclo infinito)."
@@ -527,6 +532,7 @@ class Scheduler:
                 break
 
             if not self._wake:
+                self.hw.stop_reason = "blocked"
                 self.hw.note(
                     "error",
                     "SPIKE021",
@@ -537,6 +543,7 @@ class Scheduler:
 
             next_wake = self._wake[0][0]
             if next_wake > limit_ms:
+                self.hw.stop_reason = "time_limit"
                 self.hw.note(
                     "warning",
                     "SPIKE016",

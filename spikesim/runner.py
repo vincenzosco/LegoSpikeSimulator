@@ -151,10 +151,12 @@ def run_in_process(path: str, config: Config | None = None) -> RunResult:
     watchdog = _Watchdog(config.max_wall_seconds)
     terminated = True
 
-    with warnings.catch_warnings():
-        # Le coroutine mai attese sono già segnalate dal simulatore, e con un
-        # messaggio più comprensibile di quello di CPython.
-        warnings.simplefilter("ignore")
+    # Le coroutine create e mai attese (per esempio ``main()`` senza
+    # ``runloop.run``) vengono intercettate qui: CPython emette un
+    # RuntimeWarning nel momento in cui l'oggetto viene raccolto, ed è
+    # informazione troppo utile per lasciarla sparire.
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
         try:
             watchdog.start()
             with open(program, "r", encoding="utf-8") as handle:
@@ -198,6 +200,7 @@ def run_in_process(path: str, config: Config | None = None) -> RunResult:
             restore_time()
             restore_modules()
 
+    _absorb_warnings(hardware, caught)
     hardware.stop_all_motors()
     if hardware.stop_reason in _STOPPED_REASONS:
         terminated = False
@@ -209,6 +212,33 @@ def run_in_process(path: str, config: Config | None = None) -> RunResult:
 # ---------------------------------------------------------------------------
 # Esecuzione in un processo separato
 # ---------------------------------------------------------------------------
+
+
+def _absorb_warnings(hardware: Hardware, caught) -> None:
+    """Trasforma i warning di CPython in diagnostica della traccia."""
+    reported = 0
+    for entry in caught:
+        text = str(entry.message)
+        if "never awaited" in text:
+            if reported < 10:
+                hardware.note(
+                    "warning",
+                    "SPIKE020",
+                    f"{text}: senza await e senza runloop.run() non ha alcun "
+                    "effetto. Racchiudi il codice in una funzione async e "
+                    "avviala con runloop.run().",
+                )
+            reported += 1
+        else:
+            # Un warning qualsiasi del programma: non lo nascondiamo.
+            print(
+                f"{entry.filename}:{entry.lineno}: {entry.category.__name__}: {text}",
+                file=sys.stderr,
+            )
+    if reported > 10:
+        hardware.note(
+            "warning", "SPIKE020", f"e altre {reported - 10} coroutine mai attese."
+        )
 
 
 def _timeout_trace(path: str, seconds: float) -> Trace:
