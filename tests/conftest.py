@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import os
 import textwrap
 
 import pytest
+
+# I test della GUI girano senza schermo: va deciso *prima* che una
+# QApplication esista.
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from spikesim.config import Config, default_config
 from spikesim.runner import run_in_process
@@ -26,3 +31,12 @@ def run_source(tmp_path):
         return run_in_process(str(path), config or default_config())
 
     return _run
+
+
+@pytest.fixture(scope="session")
+def qapp():
+    """Una sola QApplication per tutta la sessione di test."""
+    from PyQt5.QtWidgets import QApplication
+
+    application = QApplication.instance() or QApplication(["simulatore-test"])
+    yield application
