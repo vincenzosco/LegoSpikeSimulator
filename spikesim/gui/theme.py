@@ -20,6 +20,25 @@ WARNING = "#ffc857"
 INFO = "#7fd1a6"
 MATRIX_ON = "#ff4d4d"
 
+# --- tappeto a mattonelle ---------------------------------------------------
+
+#: Il "tavolo" su cui è appoggiato il tappeto.
+MAT_BACKGROUND = "#eef1f7"
+MAT_GRID = "#c3ccdd"
+#: Il nastro nero che unisce le mattonelle della pista.
+MAT_LINE = "#101418"
+
+#: Colore con cui si disegna ogni tipo di mattonella (chiavi di `spikesim.mat`).
+TILE_FILL = {
+    "empty": MAT_BACKGROUND,
+    "start": "#2f6bff",
+    "straight": "#151a24",
+    "turn_left": "#3ddb5a",
+    "turn_right": "#ff3b30",
+    "cross": "#151a24",
+    "finish": "#ffe14d",
+}
+
 #: Ordine dei colori SPIKE (0..10), usato per i LED dell'app.
 SPIKE_COLORS = (
     "#000000", "#ff4dd2", "#8b4dff", "#2f6bff", "#37b6ff",

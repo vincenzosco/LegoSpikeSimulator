@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import threading
+from dataclasses import replace
 
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtWidgets import (
@@ -28,6 +29,7 @@ from ..trace import Trace
 from .code_panel import CodePanel
 from .console_panel import ConsolePanel
 from .hub_view import HubView
+from .mat_panel import MatPanel
 from .port_config_panel import PortConfigPanel
 from .problems_panel import ProblemsPanel
 from .robot_view import RobotView
@@ -82,11 +84,17 @@ class MainWindow(QMainWindow):
         self.console_panel = ConsolePanel()
         self.timeline = Timeline()
         self.port_panel = PortConfigPanel()
+        self.mat_panel = MatPanel()
 
         self._build_layout()
         self._build_toolbar()
         self._connect()
-        self._set_status("Trascina un file .py nella finestra, oppure incolla il percorso.")
+        # Il simulatore si apre già con un percorso pronto da provare.
+        self._apply_template(self.mat_panel.template())
+        self._set_status(
+            "Scegli un template in «Tappeto e luce», poi premi Simula (F5). "
+            "Oppure trascina qui un tuo file .py."
+        )
 
     # -- costruzione ---------------------------------------------------------
 
@@ -130,6 +138,13 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.RightDockWidgetArea, ports_dock)
         self.ports_dock = ports_dock
 
+        mat_dock = QDockWidget("Tappeto e luce", self)
+        mat_dock.setWidget(self.mat_panel)
+        mat_dock.setMinimumWidth(300)
+        mat_dock.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable)
+        self.addDockWidget(Qt.RightDockWidgetArea, mat_dock)
+        self.mat_dock = mat_dock
+
         self.status = QLabel()
         self.statusBar().addWidget(self.status, 1)
 
@@ -171,6 +186,8 @@ class MainWindow(QMainWindow):
         self.problems_panel.problemActivated.connect(self.code_panel.goto_line)
         self.timeline.timeChanged.connect(self._on_time_changed)
         self.port_panel.configChanged.connect(self._on_config_changed)
+        self.mat_panel.matChanged.connect(self._on_mat_changed)
+        self.mat_panel.templateChosen.connect(self._on_template_chosen)
 
     # -- apertura del programma ---------------------------------------------
 
@@ -217,7 +234,7 @@ class MainWindow(QMainWindow):
         if not path:
             self.problems_panel.clear()
             return
-        diagnostics = check_source(path, self.port_panel.config())
+        diagnostics = check_source(path, self._current_config())
         self.problems_panel.set_diagnostics(diagnostics)
 
     # -- simulazione ---------------------------------------------------------
@@ -230,7 +247,7 @@ class MainWindow(QMainWindow):
         if self._thread is not None and self._thread.isRunning():
             return
 
-        config = self.port_panel.config()
+        config = self._current_config()
         self.problems_panel.set_diagnostics(check_source(path, config))
         self._reset_simulation()
         self._set_busy(True)
@@ -293,6 +310,30 @@ class MainWindow(QMainWindow):
 
     def _on_config_changed(self) -> None:
         self.recheck()
+
+    def _current_config(self) -> Config:
+        """Porte + tappeto + luce: la configurazione che riceve il runner."""
+        return replace(
+            self.port_panel.config(),
+            mat=self.mat_panel.mat(),
+            ambient_light=self.mat_panel.ambient_light(),
+        )
+
+    def _apply_template(self, template) -> None:
+        """Prepara il simulatore per un template: tappeto, porte e programma."""
+        self.robot_view.set_mat(self.mat_panel.mat())
+        self.port_panel.apply_devices(template.ports)
+        if os.path.isfile(template.program_path):
+            self.load_program(template.program_path)
+
+    def _on_mat_changed(self) -> None:
+        self.robot_view.set_mat(self.mat_panel.mat())
+        self._reset_simulation()
+        self.recheck()
+
+    def _on_template_chosen(self, template) -> None:
+        self._apply_template(template)
+        self._set_status(f"Template «{template.name}»: {template.description}")
 
     # -- drag & drop ---------------------------------------------------------
 

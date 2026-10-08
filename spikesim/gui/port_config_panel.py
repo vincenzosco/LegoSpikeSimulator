@@ -179,6 +179,27 @@ class PortConfigPanel(QScrollArea):
 
     # -- API ----------------------------------------------------------------
 
+    def apply_devices(self, devices: dict[int, str]) -> None:
+        """Installa i dispositivi consigliati da un template.
+
+        Serve perché un template porta con sé l'hardware che gli serve: il
+        segui-linea senza un sensore di colore non avrebbe niente da leggere.
+        """
+        changed = False
+        for port, device in devices.items():
+            combo = self._device_boxes.get(port)
+            if combo is None:
+                continue
+            index = combo.findData(device)
+            if index < 0 or combo.currentIndex() == index:
+                continue
+            combo.blockSignals(True)
+            combo.setCurrentIndex(index)
+            combo.blockSignals(False)
+            changed = True
+        if changed:
+            self.configChanged.emit()
+
     def config(self) -> Config:
         """Configurazione corrente, pronta per il runner."""
         ports = {

@@ -8,6 +8,7 @@ from PyQt5.QtCore import QPointF, QRectF, Qt
 from PyQt5.QtGui import QBrush, QColor, QFont, QPainter, QPen, QPolygonF
 from PyQt5.QtWidgets import QSizePolicy, QWidget
 
+from ..mat import Mat
 from ..trace import Trace
 from . import theme
 
@@ -26,6 +27,7 @@ class RobotView(QWidget):
         self.setMinimumSize(320, 260)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self._trace: Trace | None = None
+        self._mat: Mat | None = None
         self._bounds: tuple[float, float, float, float] = (-400.0, -300.0, 400.0, 300.0)
         self._time_ms: float = 0.0
         self._scale = 1.0
@@ -39,6 +41,12 @@ class RobotView(QWidget):
         self._compute_bounds()
         self.update()
 
+    def set_mat(self, mat: Mat | None) -> None:
+        """Il tappeto a mattonelle da disegnare sotto il robot."""
+        self._mat = mat
+        self._compute_bounds()
+        self.update()
+
     def set_time(self, t_ms: float) -> None:
         self._time_ms = t_ms
         self.update()
@@ -46,18 +54,20 @@ class RobotView(QWidget):
     # -- geometria -----------------------------------------------------------
 
     def _compute_bounds(self) -> None:
+        """Inquadra tappeto e traccia: il campo si adatta una volta sola."""
         margin = ROBOT_LENGTH_MM
-        if not self._trace or not self._trace.poses:
-            self._bounds = (-margin * 2, -margin * 1.5, margin * 2, margin * 1.5)
-            return
-        xs = [pose[1] for pose in self._trace.poses]
-        ys = [pose[2] for pose in self._trace.poses]
-        self._bounds = (
-            min(xs) - margin,
-            min(ys) - margin,
-            max(xs) + margin,
-            max(ys) + margin,
-        )
+        if self._mat is not None:
+            left, bottom, right, top = self._mat.bounds()
+        else:
+            left, bottom, right, top = (-margin * 2, -margin * 1.5, margin * 2, margin * 1.5)
+        if self._trace and self._trace.poses:
+            xs = [pose[1] for pose in self._trace.poses]
+            ys = [pose[2] for pose in self._trace.poses]
+            left = min(left, min(xs) - margin)
+            bottom = min(bottom, min(ys) - margin)
+            right = max(right, max(xs) + margin)
+            top = max(top, max(ys) + margin)
+        self._bounds = (left, bottom, right, top)
 
     def _update_transform(self) -> None:
         left, bottom, right, top = self._bounds
@@ -91,6 +101,7 @@ class RobotView(QWidget):
 
         self._draw_grid(painter)
         self._draw_axes(painter)
+        self._draw_mat(painter)
         self._draw_path(painter)
         self._draw_robot(painter)
         self._draw_scale_bar(painter)
@@ -117,6 +128,36 @@ class RobotView(QWidget):
         painter.setPen(QColor(theme.TEXT_MUTED))
         painter.setFont(QFont("Helvetica", 9))
         painter.drawText(self._to_pixel(0, 0) + QPointF(4, -4), "0,0")
+
+    def _draw_mat(self, painter: QPainter) -> None:
+        """Il tappeto: il tavolo chiaro, le mattonelle e il nastro che le unisce."""
+        if self._mat is None or not self._mat.tiles:
+            return
+        left, bottom, right, top = self._mat.bounds()
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QBrush(QColor(theme.MAT_BACKGROUND)))
+        painter.drawRect(QRectF(self._to_pixel(left, top), self._to_pixel(right, bottom)))
+
+        half = self._mat.tile_size_mm / 2.0
+        for (col, row), tile in self._mat.tiles.items():
+            centre_x, centre_y = self._mat.centre_of(col, row)
+            rect = QRectF(
+                self._to_pixel(centre_x - half, centre_y + half),
+                self._to_pixel(centre_x + half, centre_y - half),
+            )
+            painter.setBrush(QBrush(QColor(theme.TILE_FILL.get(tile.kind, theme.MAT_BACKGROUND))))
+            painter.setPen(QPen(QColor(theme.MAT_GRID), 1))
+            painter.drawRect(rect)
+
+        # Il nastro nero che collega le mattonelle: è la "linea" da seguire.
+        path = self._mat.path_tiles()
+        painter.setBrush(Qt.NoBrush)
+        painter.setPen(QPen(QColor(theme.MAT_LINE), max(2.0, 8.0 * self._scale)))
+        for first, second in zip(path, path[1:]):
+            painter.drawLine(
+                self._to_pixel(*self._mat.centre_of(*first)),
+                self._to_pixel(*self._mat.centre_of(*second)),
+            )
 
     def _draw_path(self, painter: QPainter) -> None:
         if not self._trace or len(self._trace.poses) < 2:
